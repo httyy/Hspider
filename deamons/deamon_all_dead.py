@@ -1,5 +1,6 @@
 ﻿import threading
 import time
+from .func import *
 
 class deamon_all_dead(threading.Thread):
     def __init__(self, name = "deamon_all_dead", master = None):
@@ -15,7 +16,7 @@ class deamon_all_dead(threading.Thread):
             self.is_stopped = False
         while self.is_stopped == False:
             if self.master.url_queue.qsize() == 0:
-                if self.master.url_buffer.qsize() == 0:
+                if self.task_is_empty == 0:
                     """Check If All Tasks Done!"""
                     if self.tasks_all_done == False:
                         self.tasks_all_done = True
@@ -86,6 +87,10 @@ class deamon_all_dead(threading.Thread):
                     pass
             else:
                 pass
+    def task_is_empty(self) :
+        isql = 'select * from urls order by id desc where status = 0 limit 1'
+        result = get_sql(sql = isql,connect = self.master.connect)
+        return (result['url'],int(result['deep']))
 
     def stop(self):
         if self.is_stopped == False:

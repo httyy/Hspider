@@ -20,7 +20,7 @@ class deamon_logs(threading.Thread) :
 
 	def status(self) :
 		logging.info('[$] Parser : %d Save : %d'%(self.master.deamon_parser_url.is_stopped,self.master.deamon_saver.is_stopped))
-		logging.info('[$] url_queue : %d url_buffer : %d content_buffer : %d'%(self.master.url_queue.qsize(),self.master.url_buffer.qsize(),self.master.content_buffer.qsize()))
+		logging.info('[$] url_queue : %d  content_buffer : %d'%(self.master.url_queue.qsize(),self.master.content_buffer.qsize()))
 
 	def stop(self) :
 		if self.is_stopped == False :

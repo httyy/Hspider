@@ -6,17 +6,18 @@ import pymysql
 from queue import Queue
 
 class Manager(threading.Thread) :
-	def __init__(self,thread_size = 1,task_size = 10,max_deep = 0,setting = {},sqlconf = {}) :
+	def __init__(self,lock,thread_size = 1,task_size = 10,max_deep = 0,setting = {},sqlconf = {}) :
 		super(Manager,self).__init__()
+
 		self.thread_size = thread_size
 		self.task_size = task_size
 		self.max_deep = max_deep
+		self.lock = lock
 
 		self.sqlconf = sqlconf
 
 		self.bitmap = deamons.BloomFilter()
 
-		self.url_buffer = Queue()
 		self.content_buffer = Queue()
 		self.url_queue = Queue(task_size)
 
@@ -30,6 +31,8 @@ class Manager(threading.Thread) :
 
 		self.proxy_list = []
 		self.__init_proxy()
+
+		self.__init_sql()
 
 		self.deamon_task_queue = deamons.deamon_task_queue(master = self)
 		self.deamon_all_dead = deamons.deamon_all_dead(master = self)
@@ -48,7 +51,7 @@ class Manager(threading.Thread) :
 			logging.debug('[!] Init the workers failed')
 
 	def __init_proxy(self) :
-		self.proxies = deamons.get_proxy_xici()
+		self.proxies = deamons.get_proxy_100()
 		logging.debug('[!] Get prxoy : %s'%len(self.proxies))
 
 	def __init_logs(self) :
@@ -60,9 +63,13 @@ class Manager(threading.Thread) :
 
 		console = logging.StreamHandler()
 		console.setLevel(logging.INFO)
-		formatter = logging.Formatter('%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s')
+		formatter = logging.Formatter('%(asctime)s : %(message)s')
 		console.setFormatter(formatter)
 		logging.getLogger('').addHandler(console)
+
+	def __init_sql(self) :
+		connect = pymysql.connect(**self.sqlconf)
+		self.connect = connect
 
 	def run(self) :
 		if self.is_stopped == True :
@@ -88,7 +95,6 @@ class Manager(threading.Thread) :
 						pass
 				else :
 					pass
-
 			if self.is_all_dead == True :
 				break
 
@@ -101,11 +107,24 @@ class Manager(threading.Thread) :
 		for worker in self.workers :
 			worker.stop()
 
+		self.connect.close()
 		logging.info('[!] All done')
 
 	def execute(self,urls) :
-		for url in urls :
-			self.url_queue.put({'url':url,'deep':0})
+		sql = 'select count(*) from urls where status = 0'
+		result = deamons.get_count_sql(sql = sql,connect = self.connect)
+
+		if result == 0 :
+			for url in urls :
+				deep = 0
+				isql = 'insert into urls values(NULL,%s,%s,0)'
+				iarg = (url,deep)
+				self.lock.acquire()
+				deamons.exec_sql(sql = isql,arg = iarg,connect = self.connect)
+				self.lock.release()
+				self.bitmap.insert(url)
+		else :
+			pass
 
 		self.start()
 
@@ -124,5 +143,6 @@ if __name__ == '__main__' :
 	start_urls = ['https://movie.douban.com/tag/',
 	]
 
-	spider = Manager(sqlconf = sqlconf,thread_size = 2,max_deep = 4)
+	mutex = threading.Lock()
+	spider = Manager(sqlconf = sqlconf,thread_size = 2,max_deep = 4,lock = mutex)
 	spider.execute(start_urls)

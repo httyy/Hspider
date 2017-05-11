@@ -85,7 +85,7 @@ def is_match(item) :
 
 	return False
 
-def exec_sql(sql,arg,connect) :
+def exec_sql(sql,connect,arg = None) :
 	try :
 		with connect.cursor() as cursor :
 			result = cursor.execute(sql,arg)
@@ -95,6 +95,27 @@ def exec_sql(sql,arg,connect) :
 		raise
 
 	return result
+
+def get_sql(sql,connect,arg = None) :
+	try :
+		with connect.cursor() as cursor :
+			cursor.execute(sql,arg)
+			result = cursor.fetchone()
+		connect.commit()
+		return result
+	except :
+		print('sql err')
+		raise
+
+def get_count_sql(sql,connect,arg = None) :
+	try :
+		with connect.cursor() as cursor :
+			cursor.execute(sql,arg)
+			result = cursor.fetchone()
+		connect.commit()
+		return int(result['count(*)'])
+	except :
+		print('sql err')
 
 if __name__ == '__main__' :
 	# print(is_match('https://movie.douban.com/subject/25937854/?from=showing'))
